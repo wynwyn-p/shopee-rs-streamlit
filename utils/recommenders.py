@@ -2,7 +2,6 @@ import re
 import streamlit as st
 import pandas as pd
 from gensim import corpora, models, similarities
-from underthesea import word_tokenize
 from .preprocessing import clean_and_tokenize
 
 # ==================== Gợi ý sản phẩm theo user_id với mô hình BaselineOnly ====================
