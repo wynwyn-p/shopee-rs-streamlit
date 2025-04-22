@@ -1,17 +1,18 @@
 import re
-from underthesea import word_tokenize
 
-def clean_and_tokenize(text, stop_words=[]):
-    # Chuẩn hóa văn bản
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', ' ', text)  # Xóa ký tự đặc biệt
+def clean_and_tokenize(text, stop_words=None):
+    """
+    Làm sạch và tách từ đơn giản bằng regex, không cần underthesea.
+    """
+    # Loại bỏ ký tự đặc biệt, chuyển về thường
+    text = re.sub(r'[^\w\s]', ' ', text.lower())
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # Tách từ tiếng Việt
-    tokens = word_tokenize(text, format="text").split()
+    # Tách từ đơn giản
+    tokens = text.split()
 
-    # Loại bỏ stopword nếu có
+    # Loại bỏ stopwords nếu có
     if stop_words:
-        tokens = [token for token in tokens if token not in stop_words]
+        tokens = [t for t in tokens if t not in stop_words]
 
     return tokens
