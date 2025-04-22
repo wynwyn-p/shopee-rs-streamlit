@@ -12,6 +12,6 @@ pyarrow
 gdown
 joblib
 streamlit-option-menu
-scipy>=1.12
+scipy==1.11.3
 
 
