@@ -11,3 +11,4 @@ plotly
 scipy
 pyarrow
 gdown
+streamlit-option-menu
