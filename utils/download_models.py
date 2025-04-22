@@ -1,7 +1,7 @@
 import os
 import gdown
 
-def download_models(folder_url="https://drive.google.com/drive/folders/1mB2wQqf1OspB8_wulXMaoxd_2W0fRpdj", model_dir="models"):
+def download_models(folder_url="https://drive.google.com/drive/u/0/folders/1B7rHACZbnmDca2TIX5NU0VZsp67uB3IT", model_dir="models"):
     """
     Tải toàn bộ mô hình từ Google Drive folder về thư mục models/
     """
