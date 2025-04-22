@@ -12,3 +12,4 @@ scipy
 pyarrow
 gdown
 streamlit-option-menu
+scipy==1.10.1
