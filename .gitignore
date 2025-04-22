@@ -1,15 +1,27 @@
-# Ignore Python cache
-__pycache__/
-*.pyc
-
-# Ignore model files (nếu quá nặng)
+# Bỏ qua thư mục chứa mô hình lớn
 models/
 
-# Ignore data if large
+# Bỏ qua dữ liệu nếu không cần theo dõi bằng Git
 data/
 
-# Streamlit config
-.streamlit/
+# Bỏ qua cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Env files
-.env
+# Virtual environment
+env/
+.venv/
+venv/
+
+# Notebook checkpoints
+*.ipynb_checkpoints
+
+# Streamlit config/logs
+.streamlit/
+*.log
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
