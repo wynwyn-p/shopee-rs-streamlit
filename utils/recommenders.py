@@ -1,50 +1,56 @@
+import os
 import re
-import streamlit as st
+import joblib
 import pandas as pd
 from gensim import corpora, models, similarities
 from .preprocessing import clean_and_tokenize
 
-# ==================== Gợi ý sản phẩm theo user_id với mô hình BaselineOnly ====================
-def recommend_baseline(user_id, top_k, df_final, baseline_model):
-    rated_products = df_final[df_final['user_id'] == user_id]['product_id'].tolist()
-    all_products = df_final['product_id'].unique()
-    products_to_predict = [pid for pid in all_products if pid not in rated_products]
+# ==================== Load models, corpus, index ====================
 
+def load_all_models(base_path="models"):
+    df_final = pd.read_parquet(os.path.join(base_path, 'df_final_new.parquet'))
+    dictionary = corpora.Dictionary.load(os.path.join(base_path, 'dictionary_tokenized.dict'))
+    tfidf_model = models.TfidfModel.load(os.path.join(base_path, 'tfidf_model_gensim.pkl'))
+    similarity_index = similarities.Similarity.load(os.path.join(base_path, 'similarity_index_gensim.pkl'))
+    baseline_model = joblib.load(os.path.join(base_path, 'baseline_only_model.pkl'))
+
+    return dictionary, tfidf_model, similarity_index, df_final, baseline_model
+
+
+# ==================== Gợi ý theo user_id (CF) ====================
+
+def recommend_baseline(user_id, top_k, df, model=None):
+    if model is None:
+        return pd.DataFrame()
+
+    all_items = df['product_id'].unique()
     predictions = []
-    for pid in products_to_predict:
-        try:
-            pred = baseline_model.predict(uid=str(user_id), iid=str(pid))
-            predictions.append((pid, pred.est))
-        except:
-            continue
 
-    top_predictions = sorted(predictions, key=lambda x: x[1], reverse=True)[:top_k]
-    top_product_ids = [pid for pid, _ in top_predictions]
+    for item_id in all_items:
+        pred = model.predict(user_id, item_id)
+        predictions.append((item_id, pred.est))
 
-    result_df = df_final[df_final['product_id'].isin(top_product_ids)].copy()
-    result_df['predicted_rating'] = result_df['product_id'].map(dict(top_predictions))
-    result_df = result_df.drop_duplicates(subset='product_id')
-    result_df = result_df.sort_values(by='predicted_rating', ascending=False)
+    top_items = sorted(predictions, key=lambda x: x[1], reverse=True)[:top_k]
+    top_df = df[df['product_id'].isin([item[0] for item in top_items])].drop_duplicates('product_id')
 
-    return result_df[['product_id', 'product_name', 'image', 'price', 'link', 'rating', 'description', 'predicted_rating']]
+    return top_df
 
-# ==================== Gợi ý theo mô tả ====================
+
+# ==================== Gợi ý theo nội dung mô tả ====================
+
 def recommend_similar_products_by_content(content, df_final, dictionary, tfidf_model, similarity_index, stop_words, top_k=5):
     try:
         tokens = clean_and_tokenize(content, stop_words)
-        if not tokens:
-            return pd.DataFrame()
-
         content_bow = dictionary.doc2bow(tokens)
         content_tfidf = tfidf_model[content_bow]
         sims = similarity_index[content_tfidf]
-        top_matches = sorted(enumerate(sims), key=lambda x: x[1], reverse=True)
+
+        top_matches = sorted(enumerate(sims), key=lambda x: x[1], reverse=True)[1:]
 
         results = []
         seen_ids = set()
+
         for i, score in top_matches:
-            if len(results) >= top_k:
-                break
             product = df_final.iloc[i]
             pid = product.get('product_id')
             if not pid or pid in seen_ids:
@@ -53,80 +59,77 @@ def recommend_similar_products_by_content(content, df_final, dictionary, tfidf_m
 
             results.append({
                 "product_id": pid,
-                "product_name": product.get("product_name"),
-                "price": product.get("price", 0),
-                "image": product.get("image"),
-                "rating": product.get("rating"),
-                "description": product.get("description"),
-                "link": product.get("link"),
-                "score": score
+                "product_name": product.get('product_name'),
+                "image": product.get('image'),
+                "link": product.get('link'),
+                "rating": product.get('rating'),
+                "description": product.get('description'),
+                "similarity": round(score, 3)
             })
+
+            if len(results) >= top_k:
+                break
 
         return pd.DataFrame(results)
 
     except Exception as e:
-        print("Lỗi khi gợi ý sản phẩm theo content:", e)
         return pd.DataFrame()
 
-# ==================== Gợi ý theo product_id hoặc product_name ====================
-def recommend_similar_products_by_options(input_text, dictionary, tfidf_model, similarity_index, df_final, stop_words, top_k=5):
+
+# ==================== Gợi ý theo mô tả / product_id / tên ====================
+
+def recommend_similar_products_by_options(input_text, top_k=5):
+    dictionary, tfidf_model, similarity_index, df_final, _ = load_all_models()
+
     row = None
-
-    # Nếu input là số → tìm theo product_id
     if input_text.isdigit():
-        row = df_final[df_final['product_id'].astype(str) == input_text]
+        row = df_final[df_final['product_id'] == int(input_text)]
 
-    # Nếu không tìm được theo ID → tìm theo tên (không dùng regex để tránh lỗi)
     if row is None or row.empty:
-        row = df_final[df_final['product_name'].str.lower().str.contains(input_text.lower(), regex=False)]
+        row = df_final[df_final['product_name'].str.lower().str.contains(input_text.lower())]
 
-    # Nếu không tìm thấy gì
     if row.empty:
-        return f"Không tìm thấy sản phẩm với thông tin: `{input_text}`", pd.DataFrame()
+        return f"Không tìm thấy sản phẩm với thông tin: {input_text}", pd.DataFrame()
 
-    # Lấy thông tin mô tả từ sản phẩm đầu tiên tìm được
     product = row.iloc[0]
     description = product.get('description', '')
 
     if pd.isna(description) or not isinstance(description, str) or not description.strip():
-        return f"Mô tả sản phẩm không hợp lệ hoặc bị thiếu cho **{product['product_name']}**", pd.DataFrame()
+        return f"Mô tả sản phẩm không hợp lệ hoặc bị thiếu cho '{product['product_name']}'", pd.DataFrame()
 
-    # Làm sạch và tokenize mô tả
-    tokens = clean_and_tokenize(description, stop_words)
-    if not tokens:
-        return f"Mô tả sau khi xử lý không còn từ khóa hợp lệ.", pd.DataFrame()
-
-    # Tính TF-IDF và độ tương đồng
-    bow = dictionary.doc2bow(tokens)
+    cleaned = re.sub(r'[^\w\s]', ' ', description.lower())
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    bow = dictionary.doc2bow(cleaned.split())
     tfidf_vec = tfidf_model[bow]
     sims = similarity_index[tfidf_vec]
-    top_indices = sorted(enumerate(sims), key=lambda x: x[1], reverse=True)
 
-    # Lọc kết quả
+    top_matches = sorted(enumerate(sims), key=lambda x: x[1], reverse=True)[1:]
+
     results = []
     seen_ids = set()
-    for i, score in top_indices:
-        if len(results) >= top_k:
-            break
-        similar_product = df_final.iloc[i]
-        pid = similar_product.get('product_id')
-        if pid == product['product_id'] or pid in seen_ids:
+
+    for i, score in top_matches:
+        item = df_final.iloc[i]
+        pid = item.get('product_id')
+        if not pid or pid in seen_ids:
             continue
         seen_ids.add(pid)
+
         results.append({
             "product_id": pid,
-            "product_name": similar_product.get("product_name"),
-            "price": similar_product.get("price"),
-            "image": similar_product.get("image"),
-            "rating": similar_product.get("rating"),
-            "description": similar_product.get("description"),
-            "link": similar_product.get("link"),
-            "score": score
+            "product_name": item.get('product_name'),
+            "image": item.get('image'),
+            "link": item.get('link'),
+            "rating": item.get('rating'),
+            "description": item.get('description'),
+            "similarity": round(score, 3)
         })
 
-    result_df = pd.DataFrame(results)
-    return product['product_name'], result_df
+        if len(results) >= top_k:
+            break
 
+    return "", pd.DataFrame(results)
+    
 # ==================== Hiển thị kết quả ====================
 def display_results(
     results,
