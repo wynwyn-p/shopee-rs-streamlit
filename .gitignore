@@ -1,0 +1,15 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore model files (nếu quá nặng)
+models/
+
+# Ignore data if large
+data/
+
+# Streamlit config
+.streamlit/
+
+# Env files
+.env
