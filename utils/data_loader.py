@@ -8,15 +8,15 @@ def download_data_from_drive():
     os.makedirs("data", exist_ok=True)
 
     files = {
-        "Products_ThoiTrangNam_raw.csv": "https://drive.google.com/uc?id=1sytoaZjlo5aUjZs3LAyYBZxl-tBIqioz",
-        "Products_ThoiTrangNam_rating_raw.csv": "https://drive.google.com/uc?id=119OqRDje8eQZpaB4Tbio9X6he1ErhNLM"
+        "Products_ThoiTrangNam_raw.csv": "https://drive.google.com/uc?export=download&id=1sytoaZjlo5aUjZs3LAyYBZxl-tBIqioz",
+        "Products_ThoiTrangNam_rating_raw.csv": "https://drive.google.com/uc?export=download&id=119OqRDje8eQZpaB4Tbio9X6he1ErhNLM"
     }
 
     for filename, url in files.items():
         path = os.path.join("data", filename)
         if not os.path.exists(path):
             print(f"📥 Tải {filename} từ Google Drive...")
-            gdown.download(url=url, output=path, quiet=False)
+            gdown.download(url=url, output=path, quiet=False, fuzzy=True)
         else:
             print(f"✅ {filename} đã tồn tại.")
 
