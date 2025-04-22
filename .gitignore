@@ -1,9 +1,6 @@
 # Bỏ qua thư mục chứa mô hình lớn
 models/
 
-# Bỏ qua dữ liệu nếu không cần theo dõi bằng Git
-data/
-
 # Bỏ qua cache Python
 __pycache__/
 *.pyc
