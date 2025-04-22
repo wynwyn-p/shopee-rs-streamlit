@@ -1,17 +1,16 @@
 streamlit
 pandas
-numpy>=1.26.0
+numpy>=1.25.2
 matplotlib
 seaborn
 scikit-learn
-gensim
+gensim>=4.3.3
 scikit-surprise
-surprise
 plotly
 pyarrow
 gdown
 joblib
 streamlit-option-menu
-scipy==1.11.3
+
 
 
