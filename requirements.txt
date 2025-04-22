@@ -13,3 +13,6 @@ gdown
 joblib
 streamlit-option-menu
 scipy==1.10.1
+pip==24.0
+setuptools==67.8.0
+wheel==0.40.0
